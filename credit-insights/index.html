@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WIB | Credit Report Insights (MVP prototype)</title>
+  <link rel="stylesheet" href="styles.slds.css">
+</head>
+<body>
+  <div class="app" id="app">
+    <section class="proto" aria-labelledby="protoTitle">
+      <h2 class="proto-title" id="protoTitle">Prototype</h2>
+
+      <div class="proto-group">
+        <span class="proto-label" id="lblLayout">Page</span>
+        <div class="toggle-group tg-inline" role="group" aria-labelledby="lblLayout">
+          <button class="toggle" type="button" data-action="layout" data-value="below" aria-pressed="false">Debts below</button>
+          <button class="toggle" type="button" data-action="layout" data-value="side" aria-pressed="true">Side by side</button>
+        </div>
+      </div>
+
+      <div class="proto-group">
+        <span class="proto-label" id="lblEvents">Events</span>
+        <div class="proto-buttons" role="group" aria-labelledby="lblEvents">
+          <button class="btn btn-secondary" type="button" data-action="evt-cfa" id="btnCfa">Complete CFA</button>
+          <button class="btn btn-secondary" type="button" data-action="evt-program" id="btnProgram">Generate Program</button>
+          <button class="btn btn-text" type="button" data-action="evt-reset">Reset</button>
+          <button class="btn btn-text" type="button" data-action="evt-reopen">Re-open lead</button>
+        </div>
+      </div>
+
+      <div class="proto-group">
+        <span class="proto-label" id="lblData">Bureau</span>
+        <div class="toggle-group tg-inline" role="group" aria-labelledby="lblData">
+          <button class="toggle" type="button" data-action="scenario" data-key="partial" data-value="false" aria-pressed="true">Complete</button>
+          <button class="toggle" type="button" data-action="scenario" data-key="partial" data-value="true" aria-pressed="false">Missing dates</button>
+        </div>
+      </div>
+
+      <div class="proto-group">
+        <span class="proto-label" id="lblHeadroom">Headroom</span>
+        <div class="toggle-group tg-inline" role="group" aria-labelledby="lblHeadroom">
+          <button class="toggle" type="button" data-action="scenario" data-key="negative" data-value="false" aria-pressed="true">Adequate</button>
+          <button class="toggle" type="button" data-action="scenario" data-key="negative" data-value="true" aria-pressed="false">Negative</button>
+        </div>
+      </div>
+
+      <div class="proto-group">
+        <span class="proto-label" id="lblService">Service</span>
+        <div class="toggle-group tg-inline" role="group" aria-labelledby="lblService">
+          <button class="toggle" type="button" data-action="scenario" data-key="failNext" data-value="false" aria-pressed="true">Healthy</button>
+          <button class="toggle" type="button" data-action="scenario" data-key="failNext" data-value="true" aria-pressed="false">Next fails</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="sf-chrome" aria-hidden="true">
+      <div class="sf-global">
+        <span class="sf-logo"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg></span>
+        <span class="sf-search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Search...</span>
+        <span class="sf-user"><span class="avatar"><span>DC</span></span></span>
+      </div>
+      <div class="sf-nav">
+        <span class="sf-app"><span class="sf-launcher"></span>Sales and Underwriting</span>
+        <span class="sf-item">Home</span><span class="sf-item">Opportunities</span><span class="sf-item is-active">Leads</span><span class="sf-item">Tasks</span><span class="sf-item">Files</span><span class="sf-item">Accounts</span><span class="sf-item">Contacts</span><span class="sf-item">Analytics</span><span class="sf-item">Chatter</span><span class="sf-item">More</span>
+      </div>
+      <div class="sf-tabs">
+        <span class="sf-tab">Pat Ellison</span><span class="sf-tab is-active">Debt Accounts</span>
+      </div>
+    </div>
+    <h1 class="sr-only">Debt Accounts, Pat Ellison</h1>
+
+    <main class="workspace" id="workspace"></main>
+  </div>
+
+  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
