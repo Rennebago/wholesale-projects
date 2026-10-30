@@ -41,7 +41,7 @@
   const CLIENT = {
     name: 'Pat Ellison', lead: 'WS-48213',
     hardship: 'Reduced Income', goal: 'Be Debt Free', employment: 'Retired',
-    firstLate: '2024-09', firstLateAgo: '25 mo. ago'
+    firstLate: '09-01-2024', firstLateAgo: '25 mo. ago'
   };
 
   const IND = [
@@ -66,25 +66,25 @@
   // Tradelines whose open date is missing when "Missing open dates" is on.
   const MISSING = [{ year: 2012, ind: 'bank', debt: 'B' }, { year: 2015, ind: 'dept' }, { year: 2018, ind: 'bank' }];
   const EVENTS = [
-    { year: 2024, label: 'First delinquency · 2024-09', tone: 'warn' },
-    { year: 2025, label: 'First charge-off · 2025-02', tone: 'neg' }
+    { year: 2024, label: 'First delinquency · 09-01-2024', tone: 'warn' },
+    { year: 2025, label: 'First charge-off · 02-09-2025', tone: 'neg' }
   ];
 
   // The 12 accounts in the Figma Debt Accounts table. `util` is the table's Utiliz column, so each limit is derived from balance and util.
   // APR, minimum payment, open date, status and account numbers are placeholders (not in the Figma frame).
   const DEBTS = [
-    { id: 'A', name: 'Comenity/Express', type: 'Department store card', acct: 'Credit Card', bal: 535, util: 42.8, apr: 29.99, min: 25, last: 25, lastDate: 'Sep 1, 2024', no: '216543546', opened: '2012-03', year: 2012, status: 'Open', tint: 'ok', flag: true, months: '1 - 3 Months' },
-    { id: 'B', name: 'Syncb/PayPal', type: 'Bank credit card', acct: 'Credit Card', bal: 596, util: 97.7, apr: 28.99, min: 30, last: 30, lastDate: 'Oct 1, 2024', no: '604419XXXX', opened: '2012-08', year: 2012, status: 'Open · delinquent', tint: 'ok', flag: true, months: '1 - 3 Months' },
-    { id: 'C', name: 'BMG Money', type: 'Personal loan', acct: 'Unsecured', bal: 8193, util: 100, apr: 34.9, min: 295, last: 200, lastDate: 'Sep 1, 2024', no: '331808504', opened: '2007-04', year: 2007, status: 'Charged-off', tint: 'warn', flag: true },
-    { id: 'D', name: 'Kashable', type: 'Personal loan', acct: 'Unsecured', bal: 4930, util: 100, apr: 24.9, min: 190, last: 563, lastDate: 'Oct 1, 2024', no: '299512', opened: '2021-06', year: 2021, status: 'Charged-off', tint: 'warn', flag: true },
-    { id: 'E', name: 'Syncb/Sam’s Club', type: 'Department store card', acct: 'Credit Card', bal: 2596, util: 103.02, apr: 29.99, min: 78, last: 126, lastDate: 'Aug 1, 2024', no: '521333XXXX', opened: '2012-11', year: 2012, status: 'Open · delinquent', tint: 'warn', flag: true },
-    { id: 'F', name: 'Comenity/Kay Jewelers', type: 'Department store card', acct: 'Credit Card', bal: 2206, util: 59.62, apr: 27.99, min: 66, last: 78, lastDate: 'Oct 1, 2024', no: '778850403', opened: '2005-05', year: 2005, status: 'Open', tint: 'warn', flag: false },
-    { id: 'G', name: 'Credit Card FB&T', type: 'Bank credit card', acct: 'Credit Card', bal: 1843, util: 67.02, apr: 29.9, min: 55, last: 45, lastDate: 'Sep 1, 2024', no: '481176XXXX', opened: '2012-05', year: 2012, status: 'Open', tint: 'warn', flag: true },
-    { id: 'H', name: 'Regions Bank', type: 'Bank credit card', acct: 'Credit Card', bal: 1145, util: 57.25, apr: 22.9, min: 36, last: 36, lastDate: 'Sep 1, 2024', no: '410064XXXX', opened: '2022-09', year: 2022, status: 'Open', tint: 'ok', flag: true },
-    { id: 'I', name: 'Upgrade', type: 'Bank credit card', acct: 'Credit Card', bal: 1038, util: 100, apr: 18.5, min: 52, last: 0, lastDate: 'Sep 1, 2024', no: '167620683', opened: '2016-05', year: 2016, status: 'Charged-off', tint: 'ok', flag: true },
-    { id: 'J', name: 'Capital One', type: 'Bank credit card', acct: 'Credit Card', bal: 1037, util: 51.85, apr: 26.9, min: 37, last: 37, lastDate: 'Oct 1, 2024', no: '400344XXXX', opened: '2012-02', year: 2012, status: 'Open', tint: 'ok', flag: true },
-    { id: 'K', name: 'Citicards', type: 'Bank credit card', acct: 'Credit Card', bal: 1008, util: 50.4, apr: 24.9, min: 41, last: 41, lastDate: 'Sep 1, 2024', no: '518941XXXX', opened: '2015-07', year: 2015, status: 'Open', tint: 'ok', flag: true },
-    { id: 'L', name: 'TBM/Aspire', type: 'Bank credit card', acct: 'Credit Card', bal: 650, util: 26, apr: 28.9, min: 30, last: 81, lastDate: 'Oct 1, 2024', no: '550114XXXX', opened: '2018-06', year: 2018, status: 'Open · delinquent', tint: 'warn', flag: true }
+    { id: 'A', name: 'Comenity/Express', type: 'Department store card', acct: 'Credit Card', bal: 535, util: 42.8, apr: 29.99, min: 25, last: 25, lastDate: '09-01-2024', no: '216543546', opened: '2012-03', year: 2012, status: 'Open', tint: 'ok', flag: true, months: '1 - 3 Months' },
+    { id: 'B', name: 'Syncb/PayPal', type: 'Bank credit card', acct: 'Credit Card', bal: 596, util: 97.7, apr: 28.99, min: 30, last: 30, lastDate: '10-01-2024', no: '604419XXXX', opened: '2012-08', year: 2012, status: 'Open · delinquent', tint: 'ok', flag: true, months: '1 - 3 Months' },
+    { id: 'C', name: 'BMG Money', type: 'Personal loan', acct: 'Unsecured', bal: 8193, util: 100, apr: 34.9, min: 295, last: 200, lastDate: '09-01-2024', no: '331808504', opened: '2007-04', year: 2007, status: 'Charged-off', tint: 'warn', flag: true },
+    { id: 'D', name: 'Kashable', type: 'Personal loan', acct: 'Unsecured', bal: 4930, util: 100, apr: 24.9, min: 190, last: 563, lastDate: '10-01-2024', no: '299512', opened: '2021-06', year: 2021, status: 'Charged-off', tint: 'warn', flag: true },
+    { id: 'E', name: 'Syncb/Sam’s Club', type: 'Department store card', acct: 'Credit Card', bal: 2596, util: 103.02, apr: 29.99, min: 78, last: 126, lastDate: '08-01-2024', no: '521333XXXX', opened: '2012-11', year: 2012, status: 'Open · delinquent', tint: 'warn', flag: true },
+    { id: 'F', name: 'Comenity/Kay Jewelers', type: 'Department store card', acct: 'Credit Card', bal: 2206, util: 59.62, apr: 27.99, min: 66, last: 78, lastDate: '10-01-2024', no: '778850403', opened: '2005-05', year: 2005, status: 'Open', tint: 'warn', flag: false },
+    { id: 'G', name: 'Credit Card FB&T', type: 'Bank credit card', acct: 'Credit Card', bal: 1843, util: 67.02, apr: 29.9, min: 55, last: 45, lastDate: '09-01-2024', no: '481176XXXX', opened: '2012-05', year: 2012, status: 'Open', tint: 'warn', flag: true },
+    { id: 'H', name: 'Regions Bank', type: 'Bank credit card', acct: 'Credit Card', bal: 1145, util: 57.25, apr: 22.9, min: 36, last: 36, lastDate: '09-01-2024', no: '410064XXXX', opened: '2022-09', year: 2022, status: 'Open', tint: 'ok', flag: true },
+    { id: 'I', name: 'Upgrade', type: 'Bank credit card', acct: 'Credit Card', bal: 1038, util: 100, apr: 18.5, min: 52, last: 0, lastDate: '09-01-2024', no: '167620683', opened: '2016-05', year: 2016, status: 'Charged-off', tint: 'ok', flag: true },
+    { id: 'J', name: 'Capital One', type: 'Bank credit card', acct: 'Credit Card', bal: 1037, util: 51.85, apr: 26.9, min: 37, last: 37, lastDate: '10-01-2024', no: '400344XXXX', opened: '2012-02', year: 2012, status: 'Open', tint: 'ok', flag: true },
+    { id: 'K', name: 'Citicards', type: 'Bank credit card', acct: 'Credit Card', bal: 1008, util: 50.4, apr: 24.9, min: 41, last: 41, lastDate: '09-01-2024', no: '518941XXXX', opened: '2015-07', year: 2015, status: 'Open', tint: 'ok', flag: true },
+    { id: 'L', name: 'TBM/Aspire', type: 'Bank credit card', acct: 'Credit Card', bal: 650, util: 26, apr: 28.9, min: 30, last: 81, lastDate: '10-01-2024', no: '550114XXXX', opened: '2018-06', year: 2018, status: 'Open · delinquent', tint: 'warn', flag: true }
   ];
 
   const INCOME = {
@@ -537,9 +537,9 @@
     return `<section class="lens spot-zone${zoneOn('story')}" aria-labelledby="kmTitle" data-spot="story" data-cv="story">
       <div class="lens-head"><h3 class="lens-title" id="kmTitle">Key moments</h3></div>
       <div class="stat-grid">
-        ${tile('Oldest account', '2001-01-09', 'Closed sales financing · 25.8 yrs')}
-        ${tile('First delinquency', '2024-09-01', '25 mo. ago', `<span class="chip chip-ai">${icon('sparkle', 14)}Inflection point</span>`)}
-        ${tile('First charge-off', '2025-02-09', '20 mo. ago')}
+        ${tile('Oldest account', '01-09-2001', 'Closed sales financing · 25.8 yrs')}
+        ${tile('First delinquency', '09-01-2024', '25 mo. ago', `<span class="chip chip-ai">${icon('sparkle', 14)}Inflection point</span>`)}
+        ${tile('First charge-off', '02-09-2025', '20 mo. ago')}
         ${tile('Peak borrowing year', String(tl.peak.year), `${tl.peak.total} opens vs. ${tl.avg.toFixed(1)}/yr avg`)}
       </div>
       <div class="spot-notes">
