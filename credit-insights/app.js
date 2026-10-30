@@ -24,7 +24,13 @@
     sparkle: '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.7 1.8 1.8.7-1.8.7L19 20l-.7-1.8-1.8-.7 1.8-.7z"/>',
     calendar: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
     'triangle-right': '<polygon points="7 3 20 12 7 21"/>',
-    check: '<polyline points="20 6 9 17 4 12"/>'
+    check: '<polyline points="20 6 9 17 4 12"/>',
+    target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+    briefcase: '<rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+    'trending-down': '<polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/>',
+    percent: '<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+    'thumbs-up': '<path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>',
+    grip: '<circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>'
   };
   const icon = (name, size = 16) =>
     `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
@@ -128,9 +134,11 @@
   /* ======================================================================
      State
      ====================================================================== */
+  // Width of the insights panel in px. The divider between the page and the panel is draggable between min and max.
+  const PANEL = { min: 440, def: 710 };
+
   const state = {
-    layout: 'side',          // 'below' = Debt Accounts under the split view | 'side' = Debt Accounts under the left content while the panel is open
-    panelOpen: true,          // the Credit Report Insights split view panel
+    panelOpen: true,          // the Credit Report Insights split view panel. Open: Debt Accounts sits under the left content. Closed: it spans the page below.
     unseen: false,            // insights refreshed while the panel was closed
     cfa: true,                // CFA_COMPLETED has happened (live WIB data)
     program: true,            // PROGRAM_GENERATED has happened (live WIB data)
@@ -138,9 +146,12 @@
     ins: { data: null, fetchedAt: null, source: '', stale: false, failed: false },
     inflight: false,
     pending: null,
-    timeline: { view: 'chart', year: null, ind: null },
+    panelW: PANEL.def,        // current width of the insights panel
+    cvOpen: false,            // the optional small window that shows what the client sees
+    spot: null,               // talking-point zone in view in the panel (highlighted as the DC scrolls)
+    cvKey: 'story',           // which part of the client's Financial Analysis the window shows
+    timeline: { year: null, ind: null },
     budgetOpen: false,
-    debtsOpen: false,         // Unsecured debts accordion in the panel (the full table is on the page)
     log: []
   };
 
@@ -274,26 +285,13 @@
 
   function negativeCard() {
     const factors = [['Lack of real estate secured loan information', '00068'], ['Too many revolving accounts with high usage', '00043'], ['Balances on bankcards too high compared to credit limits', '00029'], ['High number of inquiries', 'FA']];
-    return `<section class="details-card" aria-labelledby="negTitle">
-      <div class="details-head">${icon('alert', 24)}<h3 class="details-title" id="negTitle">Negative factors</h3></div>
-      <ul class="neg-grid">${factors.map(([t, c]) => `<li><span class="neg-text">${t}</span><span class="neg-code">code: ${c}</span></li>`).join('')}</ul>
-    </section>`;
-  }
-
-  function unsecuredCard() {
-    const list = DEBTS.filter((d) => d.apr !== undefined);
-    const total = list.reduce((s, d) => s + d.bal, 0);
-    const rows = list.map((d) => `<li class="debt-row">
-      <span class="debt-name">${d.type} - ${d.name}</span><span class="debt-amt">${money(d.bal)}.00</span>
-      <span class="debt-sub">APR: ${d.apr}% | Min. Payment: ${money(d.min)}/mo</span>
-    </li>`).join('');
-    return `<section class="lens" aria-labelledby="unsTitle">
-      <h3 class="lens-title" id="unsTitle"><button class="acc-toggle" type="button" data-action="debts-toggle" data-fid="debts" aria-expanded="${state.debtsOpen}" aria-controls="debtList">
-        <span class="acc-text"><span class="acc-title">Unsecured debts</span><span class="lens-desc lens-desc-sm">Unsecured debt is debt that’s not tied to collateral, like a house or car.</span></span>
-        <span class="acc-meta"><span class="chip chip-sm chip-info">${list.length} debts</span><span class="is-neg acc-total">${money(total)}</span></span>
-        ${icon(state.debtsOpen ? 'chevron-up' : 'chevron-down', 20)}
-      </button></h3>
-      <div class="debt-list" id="debtList"${state.debtsOpen ? '' : ' hidden'}><ul>${rows}</ul><p class="debt-total"><span>Total:</span><span class="is-neg">${money(total)}</span></p></div>
+    return `<section class="lens spot-zone${zoneOn('neg')}" aria-labelledby="negTitle" data-spot="neg" data-cv="story">
+      <div class="lens-head">
+        <h3 class="lens-title" id="negTitle">Negative factors</h3>
+        <span class="chip chip-negative">${icon('alert', 12)}${factors.length} lowering the score</span>
+      </div>
+      <ul class="neg-list">${factors.map(([t, c]) => `<li><span class="neg-text">${t}</span><span class="neg-code">Code ${c}</span></li>`).join('')}</ul>
+      <div class="spot-notes">${note('neg', 'High usage and balances near limits come straight from what they owe. Those are the factors that improve as balances are resolved.')}</div>
     </section>`;
   }
 
@@ -338,8 +336,8 @@
     </section>`;
   }
 
-  /* Client snapshot: a small page-level read for the DC ahead of the full insights panel. It reads the same insights payload as the panel,
-     so the numbers agree, and the talking point changes with where the lead is (credit pull, CFA done, program generated). */
+  /* Talking points: the page-level read for the DC, above the program estimate. It reads the same insights payload as the panel,
+     so the numbers agree, and the opener changes with where the lead is (credit pull, CFA done, program generated). */
   function talkingPoint(d) {
     const first = CLIENT.name.split(' ')[0];
     if (!d.cfa && !d.program) {
@@ -359,32 +357,46 @@
     return `The ${money(PROGRAM.deposit)}/mo deposit leaves ${money(head)}/mo of headroom. Tie it to their goal to ${CLIENT.goal.toLowerCase()} in ${PROGRAM.term / 12} years.`;
   }
 
+  function troubled() {
+    return DEBTS.filter((x) => x.status !== 'Open').sort((a, b) => b.bal - a.bal);
+  }
+
   function snapshotCard() {
     const d = state.ins.data;
     if (!d) return '';
     const ut = utilSummary();
     const ul = utilLevel(ut.pct);
-    const chargedOff = DEBTS.filter((x) => x.status === 'Charged-off').length;
-    const delinquent = DEBTS.filter((x) => x.status === 'Open · delinquent').length;
-    const tile = (k, v, s, extra) => `<div class="tile"><span class="tile-k">${k}</span><span class="tile-v">${v}</span><span class="tile-s">${s}</span>${extra || ''}</div>`;
+    const bad = troubled();
+    const badTotal = sumOf(bad, (x) => x.bal);
+    const top = bad[0];
+    const goalNote = d.program
+      ? `On the program they are debt-free in ${PROGRAM.term / 12} years, against about ${Math.round(STATUS_QUO.months / 12)} on minimums.`
+      : 'Ask what being debt free would change for them, then come back to it when you present terms.';
+    // One consolidated card: a row per topic, with the value, a status chip where it helps, and a one-line AI note.
+    const row = (ic, k, v, chip, text) => `<li class="tp-row">
+        <span class="tp-k">${icon(ic, 16)}${k}</span>
+        <span class="tp-body">
+          <span class="tp-line"><strong class="tp-v">${v}</strong>${chip || ''}</span>
+          <span class="tp-note">${icon('sparkle', 14)}<span>${text}</span></span>
+        </span>
+      </li>`;
     const open = state.panelOpen
       ? ''
-      : `<button class="btn btn-outlined" type="button" data-action="toggle-panel" data-fid="snapOpen" aria-controls="insPanel">Open full insights</button>`;
-    return `<section class="card snap" aria-labelledby="snapTitle">
-      <div class="card-head">
-        <div class="snap-head">
-          <h2 class="card-title" id="snapTitle">Client snapshot</h2>
-          <span class="chip chip-accent">${d.cfa || d.program ? 'Post-UW · Program-aligned' : 'Pre-UW · Diagnostic only'}</span>
-        </div>
+      : `<button class="btn btn-outlined btn-sm" type="button" data-action="toggle-panel" data-fid="snapOpen" aria-controls="insPanel">Open full insights</button>`;
+    return `<section class="card tp" aria-labelledby="tpHead">
+      <div class="tp-head">
+        <h2 class="card-title" id="tpHead">Talking points</h2>
+        <span class="chip chip-ai">${icon('sparkle', 14)}AI-generated</span>
         ${open}
       </div>
-      <p class="snap-lead">Stated hardship: <strong>${CLIENT.hardship}</strong>. Goal: <strong>${CLIENT.goal}</strong>. Employment: <strong>${CLIENT.employment}</strong>.</p>
-      <div class="snap-tiles">
-        ${tile('Credit utilization', `${ut.pct}%`, `${money(ut.bal)} of ${money(ut.limit)} limits`, `<span class="chip ${ul.chip}">${ul.label}</span>`)}
-        ${tile('Accounts in trouble', `${chargedOff + delinquent} of ${DEBTS.length}`, `${chargedOff} charged-off, ${delinquent} delinquent`)}
-        ${tile('First late payment', CLIENT.firstLate, CLIENT.firstLateAgo)}
-      </div>
-      <p class="prompt">${icon('sparkle', 14)}<span><strong>Open with:</strong> ${talkingPoint(d)}</span></p>
+      <p class="tp-open">${icon('sparkle', 16)}<span><strong>Open with:</strong> ${talkingPoint(d)}</span></p>
+      <ul class="tp-rows">
+        ${row('trending-down', 'Hardship', CLIENT.hardship, '', `First late payment was ${CLIENT.firstLate} (${CLIENT.firstLateAgo}). Ask what changed in their income then.`)}
+        ${row('target', 'Goal', CLIENT.goal, '', goalNote)}
+        ${row('briefcase', 'Employment', CLIENT.employment, '', 'Ask about every income source and whether the change is permanent. It sets the deposit they can sustain.')}
+        ${row('percent', 'Utilization', `${ut.pct}%`, `<span class="chip ${ul.chip}">${ul.label}</span>`, `${ut.maxed} of ${ut.cards} accounts are at 90% or more of their limit. Explain how that weighs on their score.`)}
+        ${row('alert', 'In trouble', `${bad.length} of ${DEBTS.length} accounts`, `<span class="tp-v-sub">${money(badTotal)} combined</span>`, `Start with ${esc(top.name)}, the largest at ${money(top.bal)}${top.status === 'Charged-off' ? ' and already charged-off' : ''}. Then ${esc(bad[1].name)} (${money(bad[1].bal)}).`)}
+      </ul>
     </section>`;
   }
 
@@ -430,16 +442,80 @@
   /* ======================================================================
      Credit Report Insights
      ====================================================================== */
-  const clientSees = (what) => `<span class="chip chip-muted" title="What the client sees in their Financial Analysis">${icon('eye', 14)}Client sees: ${what}</span>`;
-  const prompt = (text) => `<p class="prompt">${icon('sparkle', 14)}<span><strong>Suggested question:</strong> ${text}</span></p>`;
+  /* Talking-point notes. Each lens in the panel is a "zone". The zone nearest the middle of the panel is highlighted as the DC scrolls,
+     and each note carries a tag (Positive, Worth raising, Talking point) so meaning never rests on colour alone. */
+  const TONE = {
+    pos: { chip: 'chip-positive', ic: 'thumbs-up', tag: 'Positive for their credit' },
+    neg: { chip: 'chip-warning', ic: 'alert', tag: 'Worth raising' },
+    info: { chip: 'chip-info', ic: 'info', tag: 'Talking point' }
+  };
+  const zoneOn = (id) => (state.spot === id ? ' is-active' : '');
+  const note = (tone, text) => `<p class="spot-note">${icon('sparkle', 14)}<span><span class="chip chip-sm ${TONE[tone].chip}">${icon(TONE[tone].ic, 12)}${TONE[tone].tag}</span>${text}</span></p>`;
 
-  function lockedCard(title, reason, will, sees) {
+  // Shared figures, so the lenses and the client view always agree.
+  function pathTotals() {
+    const sqTotal = PROGRAM.enrolled + STATUS_QUO.interest;
+    return { sqTotal, saved: sqTotal - PROGRAM.total };
+  }
+  function winPlan() {
+    const share = PROGRAM.owed / PROGRAM.total;
+    const fund = PROGRAM.deposit * share;
+    const order = DEBTS.filter((x) => x.elig).sort((a, b) => a.settle - b.settle);
+    let cum = 0;
+    const rows = order.map((x, i) => {
+      cum += x.settle;
+      return { i: i + 1, x, month: Math.ceil(cum / fund - 1e-9) };
+    });
+    return { share, rows };
+  }
+
+  /* Client view: an optional small window that shows the part of the client's Financial Analysis that matches the lens in view.
+     It is a simplified preview built from the same figures, not the real FA layout. */
+  const CV = {
+    story: { title: 'Your debt reality', needs: null, body: () => {
+      const off = DEBTS.filter((x) => x.status === 'Charged-off').length;
+      const late = DEBTS.filter((x) => x.status === 'Open · delinquent').length;
+      return `<p class="cv-big">${money(sumOf(DEBTS, (x) => x.bal))}</p><p class="cv-cap">owed across ${DEBTS.length} unsecured accounts</p>
+        <ul class="cv-rows"><li><span>Charged-off</span><strong>${off}</strong></li><li><span>Past due</span><strong>${late}</strong></li><li><span>Current</span><strong>${DEBTS.length - off - late}</strong></li></ul>`;
+    } },
+    timeline: { title: 'Unsecured debts', needs: null, body: () => {
+      const top = DEBTS.slice().sort((a, b) => b.bal - a.bal).slice(0, 4);
+      return `<ul class="cv-rows cv-bars">${top.map((x) => `<li><span>${esc(x.name)}</span><strong>${money(x.bal)}</strong><i style="width:${(x.bal / top[0].bal * 100).toFixed(1)}%"></i></li>`).join('')}</ul><p class="cv-cap">Largest 4 of ${DEBTS.length} accounts</p>`;
+    } },
+    afford: { title: 'Current plan vs. Resolution program', needs: 'program', body: () => `<div class="cv-cols">
+        <div><p class="cv-k">Current plan</p><p class="cv-big">${money(STATUS_QUO.payment)}<small>/mo</small></p><p class="cv-cap">about ${Math.round(STATUS_QUO.months / 12)} years</p></div>
+        <div class="cv-prog"><p class="cv-k">Resolution program</p><p class="cv-big">${money(PROGRAM.deposit)}<small>/mo</small></p><p class="cv-cap">${PROGRAM.term / 12} years</p></div>
+      </div>` },
+    paths: { title: 'Est. program total savings', needs: 'program', body: () => `<p class="cv-big cv-pos">${money(pathTotals().saved)}</p><p class="cv-cap">estimated savings compared with staying on minimums</p>` },
+    win: { title: 'Next steps', needs: 'program', body: () => `<ol class="cv-steps"><li>Start your ${money(PROGRAM.deposit)}/mo deposit</li><li>First settlement around month ${winPlan().rows[0].month}</li><li>Debt-free in about ${PROGRAM.term / 12} years</li></ol>` }
+  };
+
+  function cvMain() {
+    const d = state.ins.data;
+    const spec = CV[state.cvKey] || CV.story;
+    const body = spec.needs && !d[spec.needs]
+      ? `<p class="cv-cap">${icon('lock', 14)}Appears after Program Generate.</p>`
+      : spec.body();
+    return `<p class="cv-section">${spec.title}</p>${body}`;
+  }
+
+  function clientViewWindow() {
+    if (!state.ins.data) return '';
+    return `<aside class="cv" id="cv" aria-labelledby="cvTitle">
+      <header class="cv-head">${icon('eye', 14)}<h3 class="cv-title" id="cvTitle">What ${esc(CLIENT.name.split(' ')[0])} sees</h3>
+        <button class="icon-btn icon-btn-sm" type="button" data-action="cv-toggle" data-fid="cvClose" aria-label="Close client view">${icon('x', 14)}</button></header>
+      <div class="cv-main" id="cvMain">${cvMain()}</div>
+      <p class="cv-foot">Simplified preview of the Financial Analysis. It follows the section you are viewing.</p>
+    </aside>`;
+  }
+
+  function lockedCard(title, reason, will) {
     return `<section class="lens lens-locked" aria-labelledby="lk-${title.replace(/\W/g, '')}">
       <div class="lens-head">
         <h3 class="lens-title" id="lk-${title.replace(/\W/g, '')}">${title}</h3>
         <span class="lens-tools"><span class="chip chip-info">${icon('lock', 12)}Locked · ${reason}</span></span>
       </div>
-      <div class="lock-body"><p>Unlocks: ${will}</p><p>${clientSees(sees)}</p></div>
+      <div class="lock-body"><p>Unlocks: ${will}</p></div>
     </section>`;
   }
 
@@ -455,39 +531,21 @@
     return { bal, limit, pct: Math.round(bal / limit * 100), cards: DEBTS.length, maxed: DEBTS.filter((x) => x.util >= 90).length };
   }
 
-  function storyCard(d) {
+  function storyCard() {
     const tl = buildTimeline();
-    const ut = utilSummary();
-    const ul = utilLevel(ut.pct);
-    const troubled = DEBTS.filter((x) => x.status === 'Charged-off' || x.status === 'Open · delinquent');
-    const chargedOff = DEBTS.filter((x) => x.status === 'Charged-off').length;
-    const unsecured = DEBTS.reduce((s, x) => s + x.bal, 0);
     const tile = (k, v, s, extra) => `<div class="tile"><span class="tile-k">${k}</span><span class="tile-v">${v}</span><span class="tile-s">${s}</span>${extra || ''}</div>`;
-    const eligNote = d.program
-      ? `<p class="callout">${icon('check-circle', 16)}<span><strong>Program-eligible debt: ${money(PROGRAM.enrolled)}</strong> across all ${DEBTS.length} accounts. ${DEBTS.filter((x) => x.year === tl.peak.year).length} of them were opened in the ${tl.peak.year} borrowing peak.</span></p>`
-      : '';
-    return `<section class="lens" aria-label="Story">
-      <div class="lens-intro">
-        <p class="lens-desc">What the client told us, what we know of their financial situation and hardship.</p>
-        ${clientSees('Your debt reality')}
-      </div>
-      <div class="words">
-        <div class="word"><span class="word-k">Stated Hardship:</span><span class="chip chip-info">${icon('info', 14)}${CLIENT.hardship}</span></div>
-        <div class="word"><span class="word-k">Stated Goal:</span><span class="chip chip-info">${icon('info', 14)}${CLIENT.goal}</span></div>
-        <div class="word"><span class="word-k">Employment:</span><span class="chip chip-info">${icon('info', 14)}${CLIENT.employment}</span></div>
-      </div>
+    return `<section class="lens spot-zone${zoneOn('story')}" aria-labelledby="kmTitle" data-spot="story" data-cv="story">
+      <div class="lens-head"><h3 class="lens-title" id="kmTitle">Key moments</h3></div>
       <div class="stat-grid">
         ${tile('Oldest account', '2001-01-09', 'Closed sales financing · 25.8 yrs')}
         ${tile('First delinquency', '2024-09-01', '25 mo. ago', `<span class="chip chip-ai">${icon('sparkle', 14)}Inflection point</span>`)}
         ${tile('First charge-off', '2025-02-09', '20 mo. ago')}
         ${tile('Peak borrowing year', String(tl.peak.year), `${tl.peak.total} opens vs. ${tl.avg.toFixed(1)}/yr avg`)}
-        ${tile('Credit Utilization', `${ut.pct}%`, `${money(ut.bal)} of ${money(ut.limit)} limits`, `<span class="chip ${ul.chip}">${ul.label}</span><div class="gauge" role="img" aria-label="${ut.pct}% of revolving limits used"><span class="gauge-fill ${ul.fill}" style="width:${Math.min(ut.pct, 100)}%"></span></div>`)}
-        ${tile('Accounts in trouble', `${troubled.length} of ${DEBTS.length}`, `${chargedOff} charged-off, ${troubled.length - chargedOff} delinquent`)}
-        ${tile('Unsecured debt', money(unsecured), `${DEBTS.length} accounts, none secured`)}
-        ${tile('Accounts on file', String(tl.all), `${DEBTS.filter((x) => x.bal > 0).length} carry a balance`)}
       </div>
-      ${eligNote}
-      ${prompt('Reduced income is the stated hardship and the first late payment is 2024-09. Did income change around then?')}
+      <div class="spot-notes">
+        ${note('pos', 'Nearly 24 years passed before the first late payment. A 25.8-year credit history is a strength, so say so early and frame the hardship as a life event, not a habit.')}
+        ${note('neg', 'The first charge-off followed within 5 months of the first late payment. Frame the program as the way to stop that slide.')}
+      </div>
     </section>`;
   }
 
@@ -499,87 +557,69 @@
     const cols = tl.cols.length + (hasUnknown ? 1 : 0);
     const style = `style="--cols:${cols}"`;
 
-    const view = state.timeline.view;
-    const viewToggle = `<div class="toggle-group tg-inline" role="group" aria-label="Timeline view">
-      <button class="toggle" type="button" data-action="tl-view" data-value="chart" data-fid="tl-chart" aria-pressed="${view === 'chart'}">Chart</button>
-      <button class="toggle" type="button" data-action="tl-view" data-value="table" data-fid="tl-table" aria-pressed="${view === 'table'}">Table</button>
-    </div>`;
-
     const notice = hasUnknown
       ? `<p class="notice notice-warning" role="status">${icon('alert', 16)}<span><strong>${tl.unknown.total} of ${tl.all} accounts are missing open dates.</strong> They are grouped under "n/a" and left off the year-by-year view. The rest of the timeline is unaffected.</span></p>`
       : '';
 
-    let body;
-    if (view === 'table') {
-      const rows = tl.cols.filter((c) => c.total > 0).map((c) =>
-        `<tr><th scope="row">${c.year}</th><td class="num">${c.total}</td>${c.counts.map((n) => `<td class="num${n ? '' : ' is-muted'}">${n}</td>`).join('')}</tr>`).join('');
-      const unk = hasUnknown ? `<tr><th scope="row">Date missing</th><td class="num">${tl.unknown.total}</td>${tl.unknown.counts.map((n) => `<td class="num${n ? '' : ' is-muted'}">${n}</td>`).join('')}</tr>` : '';
-      body = `<div class="table-wrap"><table class="table">
-        <caption class="sr-only">New accounts opened per year by industry</caption>
-        <thead><tr><th scope="col">Year</th><th scope="col" class="num">New accounts</th>${IND.map((i) => `<th scope="col" class="num">${i.label}</th>`).join('')}</tr></thead>
-        <tbody>${rows}${unk}</tbody></table></div>`;
-    } else {
-      const seg = (n, ind) => `<i class="seg ${ind.id}" style="flex:${n}"></i>`;
-      const maxY = Math.ceil((Math.max(tl.peak.total, tl.unknown.total) + 1) / 2) * 2;
-      const hPct = (n) => (n / maxY * 100).toFixed(2);
-      const yTicks = Array.from({ length: maxY / 2 + 1 }, (_, k) => k * 2);
-      const bars = tl.cols.map((c) => {
-        if (!c.total) return '<div class="tl-cell"></div>';
-        const segs = IND.map((ind, i) => (c.counts[i] ? seg(c.counts[i], ind) : '')).join('');
-        const isPeak = c.year === tl.peak.year;
-        const cls = `tl-cell${isPeak ? ' is-peak' : ''}${c.year === sel ? ' is-selected' : ''}`;
-        return `<button class="${cls}" style="--h:${hPct(c.total)}" type="button" data-action="tl-year" data-year="${c.year}" data-fid="tl-${c.year}" aria-pressed="${c.year === sel}" aria-label="${c.year}: ${c.total} new ${c.total === 1 ? 'account' : 'accounts'}${isPeak ? ', peak year' : ''}"><span class="tl-val">${c.total}</span><span class="tl-bar">${segs}</span></button>`;
-      }).join('');
-      const unkBar = hasUnknown
-        ? `<div class="tl-cell tl-cell-unknown" style="--h:${hPct(tl.unknown.total)}" role="img" aria-label="${tl.unknown.total} accounts with no open date"><span class="tl-val">${tl.unknown.total}</span><span class="tl-bar">${IND.map((ind, i) => (tl.unknown.counts[i] ? seg(tl.unknown.counts[i], ind) : '')).join('')}</span></div>`
-        : '';
-      const axis = tl.cols.map((c) => `<span>${(c.year - FIRST_YEAR) % 5 === 0 ? c.year : ''}</span>`).join('') + (hasUnknown ? '<span>n/a</span>' : '');
+    const firstEv = EVENTS[0];
+    const eligPeak = DEBTS.filter((x) => x.elig && x.year === tl.peak.year).length;
+    const eligAll = DEBTS.filter((x) => x.elig).length;
+    const headline = `Borrowing peaked in <strong>${tl.peak.year}</strong> with ${tl.peak.total} new accounts, about ${Math.round(tl.peak.total / tl.avg)}× the yearly average. The first late payment came in <strong>${firstEv.year}</strong>, ${firstEv.year - tl.peak.year} years later.${tagged ? ` ${eligPeak} of the ${eligAll} program-eligible debts started in ${tl.peak.year}.` : ''}`;
 
-      const evPills = EVENTS.map((e, idx) => `<div class="ev ev-${e.tone}" style="grid-column:${e.year - FIRST_YEAR + 1};--top:${4 + idx * 28}px"><span class="ev-line"></span><span class="ev-pill">${icon('flag', 12)}${e.label}</span></div>`).join('');
+    const seg = (n, ind) => `<i class="seg ${ind.id}" style="flex:${n}"></i>`;
+    const maxY = Math.ceil((Math.max(tl.peak.total, tl.unknown.total) + 1) / 2) * 2;
+    const hPct = (n) => (n / maxY * 100).toFixed(2);
+    const yTicks = Array.from({ length: maxY / 2 + 1 }, (_, k) => k * 2);
+    const bars = tl.cols.map((c) => {
+      if (!c.total) return '<div class="tl-cell"></div>';
+      const segs = IND.map((ind, i) => (c.counts[i] ? seg(c.counts[i], ind) : '')).join('');
+      const isPeak = c.year === tl.peak.year;
+      const cls = `tl-cell${isPeak ? ' is-peak' : ''}${c.year === sel ? ' is-selected' : ''}`;
+      return `<button class="${cls}" style="--h:${hPct(c.total)}" type="button" data-action="tl-year" data-year="${c.year}" data-fid="tl-${c.year}" aria-pressed="${c.year === sel}" aria-label="${c.year}: ${c.total} new ${c.total === 1 ? 'account' : 'accounts'}${isPeak ? ', peak year' : ''}"><span class="tl-val">${c.total}</span><span class="tl-bar">${segs}</span></button>`;
+    }).join('');
+    const unkBar = hasUnknown
+      ? `<div class="tl-cell tl-cell-unknown" style="--h:${hPct(tl.unknown.total)}" role="img" aria-label="${tl.unknown.total} accounts with no open date"><span class="tl-val">${tl.unknown.total}</span><span class="tl-bar">${IND.map((ind, i) => (tl.unknown.counts[i] ? seg(tl.unknown.counts[i], ind) : '')).join('')}</span></div>`
+      : '';
+    const axis = tl.cols.map((c) => `<span>${(c.year - FIRST_YEAR) % 5 === 0 ? c.year : ''}</span>`).join('') + (hasUnknown ? '<span>n/a</span>' : '');
 
-      const selCol = tl.cols.find((c) => c.year === sel);
-      const opened = DEBTS.filter((x) => x.year === sel && !(state.scenario.partial && x.id === 'B'));
-      const readout = selCol && selCol.total
-        ? `<strong>${selCol.year}</strong><span>${selCol.total} new ${selCol.total === 1 ? 'account' : 'accounts'}</span>${IND.map((ind, i) => (selCol.counts[i] ? `<span class="legend-item"><i class="swatch ${ind.id}"></i>${ind.label} ${selCol.counts[i]}</span>` : '')).join('')}${opened.length ? `<span class="is-muted">Debts opened:</span>${opened.map((x) => `<span class="chip chip-sm ${tagged && x.elig ? 'chip-accent' : 'chip-info'}">${x.name}${tagged ? (x.elig ? ' · eligible' : ' · not eligible') : ''}</span>`).join('')}` : ''}`
-        : `<strong>${sel}</strong><span>No new accounts opened</span>`;
+    const evPills = EVENTS.map((e, idx) => `<div class="ev ev-${e.tone}" style="grid-column:${e.year - FIRST_YEAR + 1};--top:${4 + idx * 28}px"><span class="ev-line"></span><span class="ev-pill">${icon('flag', 12)}${e.label}</span></div>`).join('');
 
-      const firstEv = EVENTS[0];
-      const eligPeak = DEBTS.filter((x) => x.elig && x.year === tl.peak.year).length;
-      const eligAll = DEBTS.filter((x) => x.elig).length;
-      const headline = `Borrowing peaked in <strong>${tl.peak.year}</strong> with ${tl.peak.total} new accounts, about ${Math.round(tl.peak.total / tl.avg)}× the yearly average. The first late payment came in <strong>${firstEv.year}</strong>, ${firstEv.year - tl.peak.year} years later.${tagged ? ` ${eligPeak} of the ${eligAll} program-eligible debts started in ${tl.peak.year}.` : ''}`;
+    const selCol = tl.cols.find((c) => c.year === sel);
+    const opened = DEBTS.filter((x) => x.year === sel && !(state.scenario.partial && x.id === 'B'));
+    const readout = selCol && selCol.total
+      ? `<strong>${sel}</strong><span>${selCol.total} new ${selCol.total === 1 ? 'account' : 'accounts'}${opened.length ? `, including ${opened.map((x) => esc(x.name)).join(', ')}` : ''}</span>`
+      : `<strong>${sel}</strong><span>No new accounts opened</span>`;
 
-      body = `<div class="tl">
-        <p class="tl-headline">${icon('sparkle', 14)}<span>${headline}</span></p>
-        <p class="tl-lane-label">New accounts opened per year, by industry. Select a year for detail.</p>
-        <div class="tl-chart" ${style}>
-          <div class="tl-y" aria-hidden="true">${yTicks.map((t) => `<span style="bottom:${hPct(t)}%">${t}</span>`).join('')}</div>
-          <div class="tl-plot">
-            <div class="tl-lines" aria-hidden="true">${yTicks.map((t) => `<i style="bottom:${hPct(t)}%"></i>`).join('')}</div>
-            <div class="tl-grid" data-ind="${state.timeline.ind || ''}">${bars}${unkBar}</div>
-            <div class="tl-overlay">${evPills}</div>
-          </div>
-          <span></span>
-          <div class="tl-axis">${axis}</div>
+    const body = `<div class="tl">
+      <p class="tl-lane-label">New accounts opened per year, by industry. Select a year for detail.</p>
+      <div class="tl-chart" ${style}>
+        <div class="tl-y" aria-hidden="true">${yTicks.map((t) => `<span style="bottom:${hPct(t)}%">${t}</span>`).join('')}</div>
+        <div class="tl-plot">
+          <div class="tl-lines" aria-hidden="true">${yTicks.map((t) => `<i style="bottom:${hPct(t)}%"></i>`).join('')}</div>
+          <div class="tl-grid" data-ind="${state.timeline.ind || ''}">${bars}${unkBar}</div>
+          <div class="tl-overlay">${evPills}</div>
         </div>
-        <p class="tl-readout" aria-live="polite">${readout}</p>
-      </div>`;
-    }
+        <span></span>
+        <div class="tl-axis">${axis}</div>
+      </div>
+      <p class="tl-readout" aria-live="polite">${readout}</p>
+    </div>`;
 
     const legend = `<div class="legend" aria-label="Legend">
       ${tl.legend.map((l) => `<button class="legend-btn" type="button" data-action="tl-ind" data-ind="${l.id}" data-fid="ind-${l.id}" aria-pressed="${state.timeline.ind === l.id}" title="Highlight ${l.label}"><i class="swatch ${l.id}"></i>${l.label} ${l.n}</button>`).join('')}
     </div>`;
 
-    return `<section class="lens" aria-labelledby="tlTitle">
+    return `<section class="lens spot-zone${zoneOn('timeline')}" aria-labelledby="tlTitle" data-spot="timeline" data-cv="timeline">
       <div class="lens-head">
         <div><h3 class="lens-title" id="tlTitle">Timeline</h3><p class="lens-desc">${tl.all} accounts on file · opening chronology, borrowing velocity and industry mix</p></div>
-        <span class="lens-tools">${clientSees('Unsecured debts')}${viewToggle}</span>
       </div>
-      ${notice}${body}${view === 'chart' ? legend : ''}
+      <div class="spot-notes">${note('info', headline)}</div>
+      ${notice}${body}${legend}
     </section>`;
   }
 
   function affordCard(d) {
-    if (!d.cfa) return lockedCard('Affordability', 'Requires CFA completion', 'verified disposable income vs. deposit, headroom rating and budget breakdown.', 'Current plan vs. resolution program');
+    if (!d.cfa) return lockedCard('Affordability', 'Requires CFA completion', 'verified disposable income vs. deposit, headroom rating and budget breakdown.');
     const b = budget();
     const has = d.program;
     const dep = PROGRAM.deposit;
@@ -623,12 +663,9 @@
           <tfoot><tr><th scope="row">Verified disposable income</th><td class="num">${money(b.disposable)}</td></tr></tfoot></table></div>`
       : '';
 
-    return `<section class="lens" aria-labelledby="affTitle">
+    return `<section class="lens spot-zone${zoneOn('afford')}" aria-labelledby="affTitle" data-spot="afford" data-cv="afford">
       <div class="lens-head"><h3 class="lens-title" id="affTitle">Affordability</h3></div>
-      <div class="lens-intro">
-        <p class="lens-desc">Verified disposable income vs. the program deposit.</p>
-        ${clientSees('Current plan vs. Resolution program')}
-      </div>
+      <p class="lens-desc">Verified disposable income vs. the program deposit.</p>
       ${alert}${pending}
       <div class="afford-stats">
         ${tile('Verified disposable income', `${money(b.disposable)}/mo`, 'From CFA budget')}
@@ -638,29 +675,31 @@
       ${bar}
       <div><button class="btn btn-text btn-flush" type="button" data-action="budget-toggle" data-fid="budget" aria-expanded="${state.budgetOpen}">${icon(state.budgetOpen ? 'chevron-up' : 'chevron-down', 14)}${state.budgetOpen ? 'Hide budget breakdown' : 'View budget breakdown'}</button></div>
       ${breakdown}
-      ${has && head < 0 ? prompt('Can any of the living costs come down, or is there other income, before they enroll?') : ''}
+      <div class="spot-notes">${has
+        ? (head < 0
+          ? note('neg', 'Can any of the living costs come down, or is there other income, before they enroll?')
+          : note('pos', `Headroom of ${money(head)}/mo after the deposit. Confirm they are comfortable with it, then tie it to their goal.`))
+        : note('info', `Verified disposable income is ${money(b.disposable)}/mo. Ask what they can commit comfortably before you quote a deposit.`)}</div>
     </section>`;
   }
 
   function twoPathsCard(d) {
-    if (!d.program) return lockedCard('Two Paths', 'Requires Program Offer generation', 'Status quo vs. program comparison with savings and time to debt-free.', 'Est. program total savings');
+    if (!d.program) return lockedCard('Two Paths', 'Requires Program Offer generation', 'a side-by-side of staying on minimums vs. the program, with total cost, time and monthly cash flow.');
     const sq = STATUS_QUO;
     const pg = PROGRAM;
     const fees = pg.total - pg.owed;
-    const sqTotal = pg.enrolled + sq.interest;
-    const saved = sqTotal - pg.total;
+    const { sqTotal, saved } = pathTotals();
     const years = Math.round((sq.months - pg.term) / 12);
     const disp = d.cfa ? budget().disposable : null;
     const row = (label, a, b2, diff, aNeg, bNeg) => `<tr><th scope="row">${label}</th><td class="num${aNeg ? ' is-neg' : ''}">${a}</td><td class="num${bNeg ? ' is-neg' : ''}">${b2}</td><td class="num diff diff-good">${diff}</td></tr>`;
     const left = disp === null
       ? '<tr><th scope="row">Money left over monthly</th><td class="num is-muted">-</td><td class="num is-muted">-</td><td class="num is-muted">Needs CFA</td></tr>'
       : row('Money left over monthly', `${money(disp - sq.payment)}/mo`, `${money(disp - pg.deposit)}/mo`, `${moneyS(sq.payment - pg.deposit)}/mo`, disp - sq.payment < 0, disp - pg.deposit < 0);
-    return `<section class="lens" aria-labelledby="tpTitle">
+    return `<section class="lens spot-zone${zoneOn('paths')}" aria-labelledby="tpTitle" data-spot="paths" data-cv="paths">
       <div class="lens-head">
         <div><h3 class="lens-title" id="tpTitle">Two Paths</h3><p class="lens-desc">If nothing changes vs. on the program</p></div>
-        <span class="lens-tools">${clientSees('Est. program total savings')}</span>
       </div>
-      <p class="notice notice-positive" role="status">${icon('check-circle', 16)}<span>Same ${money(pg.enrolled)} of debt: <strong>${money(saved)} cheaper</strong> and about <strong>${years} years faster</strong> on the program. Staying on minimums adds ${money(sq.interest)} in interest.</span></p>
+      <div class="spot-notes">${note('pos', `Same ${money(pg.enrolled)} of debt: <strong>${money(saved)} cheaper</strong> and about <strong>${years} years faster</strong> on the program. Staying on minimums adds ${money(sq.interest)} in interest.`)}</div>
       <div class="table-wrap"><table class="table">
         <caption class="sr-only">Status quo compared with the program</caption>
         <thead><tr><th scope="col"><span class="sr-only">Measure</span></th><th scope="col" class="num">If nothing changes</th><th scope="col" class="num th-program">On the program</th><th scope="col" class="num">Difference</th></tr></thead>
@@ -677,23 +716,14 @@
   }
 
   function firstWinCard(d) {
-    if (!d.program) return lockedCard('First Win', 'Requires Program Offer generation', 'the first likely settlement, the settlement order and a funding timeline from the verified deposit.', 'Next steps');
-    const share = PROGRAM.owed / PROGRAM.total;
-    const fund = PROGRAM.deposit * share;
-    const order = DEBTS.filter((x) => x.elig).sort((a, b) => a.settle - b.settle);
-    let cum = 0;
-    const rows = order.map((x, i) => {
-      cum += x.settle;
-      const month = Math.ceil(cum / fund - 1e-9);
-      return { i: i + 1, x, month };
-    });
+    if (!d.program) return lockedCard('First Win', 'Requires Program Offer generation', 'the first likely settlement, the settlement order and a funding timeline from the verified deposit.');
+    const { share, rows } = winPlan();
     const first = rows[0];
-    return `<section class="lens" aria-labelledby="fwTitle">
+    return `<section class="lens spot-zone${zoneOn('win')}" aria-labelledby="fwTitle" data-spot="win" data-cv="win">
       <div class="lens-head">
         <div><h3 class="lens-title" id="fwTitle">First Win</h3><p class="lens-desc">Settlement order using the program deposit</p></div>
-        <span class="lens-tools">${clientSees('Next steps')}</span>
       </div>
-      <p class="notice notice-info" role="status">${icon('info', 16)}<span><strong>First likely win: ${first.x.name} at ${money(first.x.settle)}</strong>, around month ${first.month}.</span></p>
+      <div class="spot-notes">${note('pos', `<strong>First likely win: ${esc(first.x.name)} at ${money(first.x.settle)}</strong>, around month ${first.month}. An early win builds their confidence in the plan.`)}</div>
       <div class="table-wrap"><table class="table">
         <caption class="sr-only">Expected settlement order</caption>
         <thead><tr><th scope="col">#</th><th scope="col">Creditor</th><th scope="col" class="num">Balance</th><th scope="col" class="num">Est. settlement</th><th scope="col" class="num">Funded by</th><th scope="col">Status</th></tr></thead>
@@ -725,7 +755,7 @@
       ${meta}${stale}
       <div class="band-group">
         <div class="band"><h3 class="band-title">The client’s debt reality</h3></div>
-        ${storyCard(d)}${negativeCard()}${timelineCard(d)}${unsecuredCard()}
+        ${storyCard(d)}${negativeCard()}${timelineCard(d)}
       </div>
       <div class="band-group">
         <div class="band"><h3 class="band-title">The client’s debt solution program</h3></div>
@@ -740,27 +770,64 @@
      ====================================================================== */
   function renderWorkspace() {
     // Side by side with the panel open: Debt Accounts sits under the left content and scrolls with it. Otherwise it spans the page below.
-    const sideDebts = state.layout === 'side' && state.panelOpen;
-    const main = `<div class="work-main" id="workMain">${snapshotCard()}<div class="work-cards">${termsCard()}${summaryCard()}</div>${sideDebts ? debtAccountsPage() : ''}</div>`;
+    const sideDebts = state.panelOpen;
+    // Talking points sit above Program Terms Estimate in one stack. Once there is room, the stack sits to the left of Debt Account Summary.
+    const main = `<div class="work-main" id="workMain"><div class="work-cards"><div class="work-stack">${snapshotCard()}${termsCard()}</div>${summaryCard()}</div>${sideDebts ? debtAccountsPage() : ''}</div>`;
     // The handle collapses the panel. When it is closed, a labelled tab stays on the right edge to bring it back.
     const side = state.panelOpen
-      ? `<button class="split-handle" type="button" data-action="toggle-panel" data-fid="handle" aria-expanded="true" aria-controls="insPanel" aria-label="Collapse Credit Report Insights panel">${icon('chevron-right', 12)}</button>
-        <aside class="split-panel" id="insPanel" aria-labelledby="panelTitle">
+      ? `<div class="split-divider">
+          <div class="split-resizer" role="separator" aria-orientation="vertical" tabindex="0" data-fid="resizer" aria-controls="insPanel" aria-label="Resize Credit Report Insights panel" aria-valuemin="${PANEL.min}" aria-valuemax="${panelMax()}" aria-valuenow="${state.panelW}" aria-valuetext="${state.panelW} pixels wide">${icon('grip', 12)}</div>
+          <button class="split-collapse" type="button" data-action="toggle-panel" data-fid="handle" aria-expanded="true" aria-controls="insPanel" aria-label="Collapse Credit Report Insights panel">${icon('chevron-right', 12)}</button>
+        </div>
+        <aside class="split-panel${state.cvOpen ? ' has-cv' : ''}" id="insPanel" aria-labelledby="panelTitle" style="width:${state.panelW}px">
           <header class="panel-head"><h2 class="panel-title" id="panelTitle">Credit Report Insights</h2>
-            <button class="icon-btn" type="button" data-action="toggle-panel" data-fid="panelClose" aria-label="Collapse Credit Report Insights panel">${icon('x', 20)}</button></header>
+            <span class="panel-tools">
+              <button class="btn btn-secondary btn-sm" type="button" data-action="cv-toggle" data-fid="cvBtn" aria-pressed="${state.cvOpen}" aria-controls="cv">${icon('eye', 14)}Client view</button>
+              <button class="icon-btn" type="button" data-action="toggle-panel" data-fid="panelClose" aria-label="Collapse Credit Report Insights panel">${icon('x', 20)}</button>
+            </span></header>
           <div class="panel-body">${insightsBody()}</div>
+          ${state.cvOpen ? clientViewWindow() : ''}
         </aside>`
       : `<button class="split-tag" type="button" data-action="toggle-panel" data-fid="handle" aria-expanded="false" aria-controls="insPanel">${icon('chevron-left', 16)}Credit Report Insights${state.unseen ? '<span class="tab-dot" aria-hidden="true"></span><span class="sr-only"> (updated)</span>' : ''}</button>
         <button class="split-tab" type="button" data-action="toggle-panel" tabindex="-1" aria-hidden="true">${icon('triangle-right', 12)}</button>`;
-    $('#workspace').className = `workspace${state.layout === 'side' && state.panelOpen ? ' is-fit' : ''}${state.panelOpen ? '' : ' panel-closed'}`;
+    $('#workspace').className = `workspace${state.panelOpen ? ' is-fit' : ' panel-closed'}`;
     $('#workspace').innerHTML = `<div class="split-region">${main}${side}</div>${sideDebts ? '' : `<div class="page-below">${debtAccountsPage()}</div>`}`;
   }
 
   function syncControls() {
-    $$('[data-action="layout"]').forEach((b) => b.setAttribute('aria-pressed', String(state.layout === b.dataset.value)));
     $$('[data-action="scenario"]').forEach((b) => b.setAttribute('aria-pressed', String(String(state.scenario[b.dataset.key]) === b.dataset.value)));
     $('#btnCfa').disabled = state.cfa;
     $('#btnProgram').disabled = state.program;
+  }
+
+  /* Spotlight: as the panel scrolls, the zone nearest the middle gets the highlight, and the client view window follows it. */
+  function bindSpotlight() {
+    const body = $('.panel-body');
+    if (!body) return;
+    const zones = $$('.spot-zone', body);
+    if (!zones.length) return;
+    let queued = false;
+    const apply = () => {
+      queued = false;
+      const box = body.getBoundingClientRect();
+      const mid = box.top + box.height * 0.4;
+      let best = zones[0];
+      let gap = Infinity;
+      zones.forEach((z) => {
+        const r = z.getBoundingClientRect();
+        const g = r.top <= mid && r.bottom >= mid ? 0 : Math.min(Math.abs(r.top - mid), Math.abs(r.bottom - mid));
+        if (g < gap) { gap = g; best = z; }
+      });
+      zones.forEach((z) => z.classList.toggle('is-active', z === best));
+      if (state.spot !== best.dataset.spot) {
+        state.spot = best.dataset.spot;
+        state.cvKey = best.dataset.cv;
+        const main = $('#cvMain');
+        if (main) main.innerHTML = cvMain();
+      }
+    };
+    body.addEventListener('scroll', () => { if (!queued) { queued = true; requestAnimationFrame(apply); } }, { passive: true });
+    apply();
   }
 
   function render() {
@@ -775,6 +842,7 @@
     $('#workspace').scrollTop = pageTop;
     if ($('#workMain')) $('#workMain').scrollTop = mainTop;
     if ($('.panel-body')) $('.panel-body').scrollTop = panelTop;
+    bindSpotlight();
     if (fid) { const el = document.querySelector(`[data-fid="${fid}"]`); if (el) el.focus({ preventScroll: true }); }
   }
 
@@ -787,11 +855,6 @@
     switch (t.dataset.action) {
       case 'noop':
         toast('This control is on the page today and is not part of the prototype.');
-        break;
-      case 'layout':
-        state.layout = t.dataset.value;
-        log('proto', `Page layout: ${state.layout === 'side' ? 'side by side, debts under the left content, scroll across for more columns' : 'debts below the split view'} (prototype control, no request).`);
-        render();
         break;
       case 'toggle-panel':
         state.panelOpen = !state.panelOpen;
@@ -831,10 +894,6 @@
       case 'refresh':
         requestInsights('Manual refresh');
         break;
-      case 'tl-view':
-        state.timeline.view = t.dataset.value;
-        render();
-        break;
       case 'tl-year':
         state.timeline.year = Number(t.dataset.year);
         render();
@@ -847,14 +906,64 @@
         state.budgetOpen = !state.budgetOpen;
         render();
         break;
-      case 'debts-toggle':
-        state.debtsOpen = !state.debtsOpen;
+      case 'cv-toggle':
+        state.cvOpen = !state.cvOpen;
         render();
+        if (!state.cvOpen) { const btn = $('[data-fid="cvBtn"]'); if (btn) btn.focus(); }
         break;
       default:
         break;
     }
   });
+
+  /* ======================================================================
+     Resizable insights panel. Drag the divider, or focus it and use the arrow keys. Double-click resets the width.
+     ====================================================================== */
+  function panelMax() { return Math.max(PANEL.min, Math.min(960, window.innerWidth - 520)); }
+  function setPanelW(w) {
+    state.panelW = Math.round(Math.min(panelMax(), Math.max(PANEL.min, w)));
+    const panel = $('.split-panel');
+    if (panel) panel.style.width = `${state.panelW}px`;
+    const bar = $('.split-resizer');
+    if (bar) {
+      bar.setAttribute('aria-valuemax', String(panelMax()));
+      bar.setAttribute('aria-valuenow', String(state.panelW));
+      bar.setAttribute('aria-valuetext', `${state.panelW} pixels wide`);
+    }
+  }
+
+  document.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || !e.target.closest('.split-resizer')) return;
+    e.preventDefault();
+    const x0 = e.clientX;
+    const w0 = state.panelW;
+    document.body.classList.add('is-resizing');
+    const move = (ev) => setPanelW(w0 + x0 - ev.clientX);
+    const stop = () => {
+      document.body.classList.remove('is-resizing');
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', stop);
+      window.removeEventListener('pointercancel', stop);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', stop);
+    window.addEventListener('pointercancel', stop);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (!e.target.closest || !e.target.closest('.split-resizer')) return;
+    const step = e.shiftKey ? 96 : 24;
+    // The panel is on the right, so moving the divider left makes it wider.
+    if (e.key === 'ArrowLeft') setPanelW(state.panelW + step);
+    else if (e.key === 'ArrowRight') setPanelW(state.panelW - step);
+    else if (e.key === 'Home') setPanelW(PANEL.min);
+    else if (e.key === 'End') setPanelW(panelMax());
+    else return;
+    e.preventDefault();
+  });
+
+  document.addEventListener('dblclick', (e) => { if (e.target.closest('.split-resizer')) setPanelW(PANEL.def); });
+  window.addEventListener('resize', () => { if (state.panelOpen) setPanelW(state.panelW); });
 
   /* ======================================================================
      Init
