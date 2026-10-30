@@ -417,6 +417,17 @@ select.input-cell { min-width: 6.5rem; }
 .chip svg { width: var(--ci-sp-3); height: var(--ci-sp-3); }
 .btn-flush { padding-left: 0; }
 
+/* ---------- Client snapshot (page level, ahead of the full insights) ---------- */
+.snap { gap: var(--ci-sp-3); }
+.snap-head { display: flex; align-items: center; gap: var(--ci-sp-3); flex-wrap: wrap; }
+.snap-lead { font-size: var(--ci-fs-base); line-height: var(--ci-lh-body); color: var(--ci-text-body); }
+.snap-lead strong { font-weight: var(--ci-fw-medium); color: var(--ci-text); }
+.snap-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--ci-sp-3); }
+.snap-tiles .tile { padding: var(--ci-sp-3); }
+.snap-tiles .tile-k { font-size: var(--ci-fs-base); }
+.snap-tiles .tile-v { font-size: var(--ci-fs-3); }
+.snap .prompt { padding: var(--ci-sp-2) var(--ci-sp-3); font-size: var(--ci-fs-base); }
+
 /* Negative factors */
 .details-card { display: flex; flex-direction: column; padding: var(--ci-sp-5); background: var(--ci-container); border: var(--ci-bw-1) solid var(--ci-border); border-radius: var(--ci-r-3); box-shadow: var(--ci-shadow-1); }
 .details-head { display: flex; align-items: center; justify-content: center; gap: var(--ci-sp-2); padding-bottom: var(--ci-sp-5); border-bottom: var(--ci-bw-1) solid var(--ci-border); color: var(--ci-on-warning); }

@@ -32,7 +32,11 @@
   /* ======================================================================
      Placeholder data (de-identified, mirrors the ticket and the Figma frames)
      ====================================================================== */
-  const CLIENT = { name: 'Pat Ellison', lead: 'WS-48213' };
+  const CLIENT = {
+    name: 'Pat Ellison', lead: 'WS-48213',
+    hardship: 'Reduced Income', goal: 'Be Debt Free', employment: 'Retired',
+    firstLate: '2024-09', firstLateAgo: '25 mo. ago'
+  };
 
   const IND = [
     { id: 'bank', label: 'Bank credit cards' },
@@ -334,6 +338,56 @@
     </section>`;
   }
 
+  /* Client snapshot: a small page-level read for the DC ahead of the full insights panel. It reads the same insights payload as the panel,
+     so the numbers agree, and the talking point changes with where the lead is (credit pull, CFA done, program generated). */
+  function talkingPoint(d) {
+    const first = CLIENT.name.split(' ')[0];
+    if (!d.cfa && !d.program) {
+      return `${first} cited ${CLIENT.hardship.toLowerCase()}, and the first late payment was ${CLIENT.firstLate}. Ask what changed in their income around then, before you talk terms.`;
+    }
+    if (!d.cfa) {
+      return `A ${money(PROGRAM.deposit)}/mo program is ready. Confirm the budget first, so you know ${first} can fund it.`;
+    }
+    const disp = budget().disposable;
+    if (!d.program) {
+      return `Verified disposable income is ${money(disp)}/mo. Ask what they can commit comfortably each month before you quote a deposit.`;
+    }
+    const head = disp - PROGRAM.deposit;
+    if (head < 0) {
+      return `The ${money(PROGRAM.deposit)}/mo deposit is ${money(-head)} over verified disposable income. Ask which living costs can come down before they enroll.`;
+    }
+    return `The ${money(PROGRAM.deposit)}/mo deposit leaves ${money(head)}/mo of headroom. Tie it to their goal to ${CLIENT.goal.toLowerCase()} in ${PROGRAM.term / 12} years.`;
+  }
+
+  function snapshotCard() {
+    const d = state.ins.data;
+    if (!d) return '';
+    const ut = utilSummary();
+    const ul = utilLevel(ut.pct);
+    const chargedOff = DEBTS.filter((x) => x.status === 'Charged-off').length;
+    const delinquent = DEBTS.filter((x) => x.status === 'Open · delinquent').length;
+    const tile = (k, v, s, extra) => `<div class="tile"><span class="tile-k">${k}</span><span class="tile-v">${v}</span><span class="tile-s">${s}</span>${extra || ''}</div>`;
+    const open = state.panelOpen
+      ? ''
+      : `<button class="btn btn-outlined" type="button" data-action="toggle-panel" data-fid="snapOpen" aria-controls="insPanel">Open full insights</button>`;
+    return `<section class="card snap" aria-labelledby="snapTitle">
+      <div class="card-head">
+        <div class="snap-head">
+          <h2 class="card-title" id="snapTitle">Client snapshot</h2>
+          <span class="chip chip-accent">${d.cfa || d.program ? 'Post-UW · Program-aligned' : 'Pre-UW · Diagnostic only'}</span>
+        </div>
+        ${open}
+      </div>
+      <p class="snap-lead">Stated hardship: <strong>${CLIENT.hardship}</strong>. Goal: <strong>${CLIENT.goal}</strong>. Employment: <strong>${CLIENT.employment}</strong>.</p>
+      <div class="snap-tiles">
+        ${tile('Credit utilization', `${ut.pct}%`, `${money(ut.bal)} of ${money(ut.limit)} limits`, `<span class="chip ${ul.chip}">${ul.label}</span>`)}
+        ${tile('Accounts in trouble', `${chargedOff + delinquent} of ${DEBTS.length}`, `${chargedOff} charged-off, ${delinquent} delinquent`)}
+        ${tile('First late payment', CLIENT.firstLate, CLIENT.firstLateAgo)}
+      </div>
+      <p class="prompt">${icon('sparkle', 14)}<span><strong>Open with:</strong> ${talkingPoint(d)}</span></p>
+    </section>`;
+  }
+
   function debtAccountsPage() {
     const fmtUtil = (u) => (u === 100 ? '100%' : `${u.toFixed(2)}%`);
     const rows = DEBTS.map((d, i) => {
@@ -418,9 +472,9 @@
         ${clientSees('Your debt reality')}
       </div>
       <div class="words">
-        <div class="word"><span class="word-k">Stated Hardship:</span><span class="chip chip-info">${icon('info', 14)}Reduced Income</span></div>
-        <div class="word"><span class="word-k">Stated Goal:</span><span class="chip chip-info">${icon('info', 14)}Be Debt Free</span></div>
-        <div class="word"><span class="word-k">Employment:</span><span class="chip chip-info">${icon('info', 14)}Retired</span></div>
+        <div class="word"><span class="word-k">Stated Hardship:</span><span class="chip chip-info">${icon('info', 14)}${CLIENT.hardship}</span></div>
+        <div class="word"><span class="word-k">Stated Goal:</span><span class="chip chip-info">${icon('info', 14)}${CLIENT.goal}</span></div>
+        <div class="word"><span class="word-k">Employment:</span><span class="chip chip-info">${icon('info', 14)}${CLIENT.employment}</span></div>
       </div>
       <div class="stat-grid">
         ${tile('Oldest account', '2001-01-09', 'Closed sales financing · 25.8 yrs')}
@@ -687,7 +741,7 @@
   function renderWorkspace() {
     // Side by side with the panel open: Debt Accounts sits under the left content and scrolls with it. Otherwise it spans the page below.
     const sideDebts = state.layout === 'side' && state.panelOpen;
-    const main = `<div class="work-main" id="workMain"><div class="work-cards">${termsCard()}${summaryCard()}</div>${sideDebts ? debtAccountsPage() : ''}</div>`;
+    const main = `<div class="work-main" id="workMain">${snapshotCard()}<div class="work-cards">${termsCard()}${summaryCard()}</div>${sideDebts ? debtAccountsPage() : ''}</div>`;
     // The handle collapses the panel. When it is closed, a labelled tab stays on the right edge to bring it back.
     const side = state.panelOpen
       ? `<button class="split-handle" type="button" data-action="toggle-panel" data-fid="handle" aria-expanded="true" aria-controls="insPanel" aria-label="Collapse Credit Report Insights panel">${icon('chevron-right', 12)}</button>
